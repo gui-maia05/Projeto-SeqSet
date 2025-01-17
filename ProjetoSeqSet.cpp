@@ -1,83 +1,133 @@
 #include <iostream>
 #include <fstream>
-#include <string>
 
 using namespace std;
 
 struct RegistroTrade {
     int time_ref;
-    char account[20];
-    char code[20];
-    char country_code[20];
-    char product_type[20];
+    char account[50];
+    char code[50];
+    char country_code[50];
+    char product_type[50];
     float value;
     char status[10];
 };
 
-class InternationalTrade{
-    private:
-    int quantidadeTrades = 0;
+class InternationalTrade {
+private:
+    int quantTrades = 0;
 
-    public:
-    InternationalTrade(){
-        quantidadeTrades = 0;
-        
+public:
+    InternationalTrade() {
+        quantTrades = 0;
     }
 
-    ~InternationalTrade() {
-
-    }
+    ~InternationalTrade() {}
 
     void leituraArquivoCSV();
+    void transformarEmBinario(RegistroTrade* dados, int quantTrades);
+    void leituraArquivoBinario();   
 };
 
+void InternationalTrade::leituraArquivoCSV() {
 
-void InternationalTrade::leituraArquivoCSV(){
+    RegistroTrade* dados = new RegistroTrade[quantTrades];
+    string linha;
+    char lixo;
+    int i = 0;
 
     ifstream arquivoCSV("international-trade-june-2022-quarter-csv.csv");
-    if (not (arquivoCSV)){
+    if (!arquivoCSV) {
         cout << "Erro ao abrir o arquivo CSV!" << endl;
+        return;
     }
 
-    string linha;
-    getline(arquivoCSV, linha); //pular o cabeçalho
+    getline(arquivoCSV, linha); // Pular o cabeçalho
 
-    RegistroTrade* dados = new RegistroTrade[quantidadeTrades];
-    char lixo;
+    // Contar a quantidade de trades
+    while (getline(arquivoCSV, linha)) {
+        quantTrades++;
+    }
 
+    arquivoCSV.clear();
+    arquivoCSV.seekg(0, ios::beg);
+    getline(arquivoCSV, linha);
 
-    while (arquivoCSV >> dados[quantidadeTrades].time_ref){
-        arquivoCSV >> lixo;
-        arquivoCSV.getline(dados[quantidadeTrades].account, 20, ',');
-        arquivoCSV.getline(dados[quantidadeTrades].code, 20, ',');
-        arquivoCSV.getline(dados[quantidadeTrades].country_code, 20, ',');
-        arquivoCSV.getline(dados[quantidadeTrades].product_type, 20, ',');
-        arquivoCSV >> dados[quantidadeTrades].value;
-        arquivoCSV >> lixo;
-        arquivoCSV.getline(dados[quantidadeTrades].status, 10);
+    while (arquivoCSV >> dados[i].time_ref) {
+        arquivoCSV >> lixo; // Pular a vírgula
+        arquivoCSV.getline(dados[i].account, 50, ',');
+        arquivoCSV.getline(dados[i].code, 50, ',');
+        arquivoCSV.getline(dados[i].country_code, 50, ',');
+        arquivoCSV.getline(dados[i].product_type, 50, ',');
+        arquivoCSV >> dados[i].value;
+        if (arquivoCSV.fail()) {
+            dados[i].value = 0.0; // Se falhou, atribui 0.0
+            arquivoCSV.clear(); // Limpar o estado de falha
+            arquivoCSV >> lixo; 
+        } else {
+            arquivoCSV >> lixo; 
+        }
+        arquivoCSV.getline(dados[i].status, 10);
         arquivoCSV.ignore();
 
-        quantidadeTrades++;
-
-        for (int i = 0; i < quantidadeTrades; i++) {
-            cout << "time_ref: " << dados[i].time_ref << endl;
-            cout << "account: " << dados[i].account << endl;
-            cout << "code: " << dados[i].code << endl;
-            cout << "country_code: " << dados[i].country_code << endl;
-            cout << "product_type: " << dados[i].product_type << endl;
-            cout << "value: " << dados[i].value << endl;
-            cout << "status: " << dados[i].status << endl;
-            cout << endl;
-        }
+        i++;
     }
+
+    arquivoCSV.close();
+
+    transformarEmBinario(dados, quantTrades);
+
+    delete[] dados;
 }
 
+void InternationalTrade::transformarEmBinario(RegistroTrade* dados, int quantTrades) {
+    ofstream arquivoBinario("international-trade-june-2022-quarter-bin.bin", ios::binary);
+    arquivoBinario.write((char*)dados, sizeof(RegistroTrade) * quantTrades);
+    arquivoBinario.close();
+}
 
+void InternationalTrade::leituraArquivoBinario() {
+    ifstream arquivoBinario("international-trade-june-2022-quarter-bin.bin", ios::binary);
+    if (!arquivoBinario) {
+        cout << "Erro ao abrir o arquivo binário!" << endl;
+        return;
+    }
 
-int main(){
+    arquivoBinario.seekg(0, ios::end);
+    streamsize tamanhoArquivo = arquivoBinario.tellg();
+    arquivoBinario.seekg(0, ios::beg);
 
+    quantTrades = tamanhoArquivo / sizeof(RegistroTrade);
+
+    RegistroTrade* dados = new RegistroTrade[quantTrades];
+
+    // Ler os dados do arquivo binário
+    arquivoBinario.read((char*)dados, tamanhoArquivo);
+    
+    arquivoBinario.close();
+
+    delete[] dados;
+}
+
+int main() {
+    int opcao;
     InternationalTrade trade;
-    trade.leituraArquivoCSV();
+
+    cout << "Escolha uma opcao: " << endl
+    << "1 - Converter a leitura do arquivo CSV para o formato binario." << endl
+    << "2 - Acessar arquivo binario." << endl;
+    cin >> opcao;
+    switch (opcao) {
+        case 1:
+            trade.leituraArquivoCSV();
+            break;
+        case 2:
+            trade.leituraArquivoBinario();
+            break;
+        default:
+            cout << "Opção inválida!" << endl;
+            break;
+    }
 
     return 0;
 }
