@@ -30,8 +30,6 @@ public:
 };
 
 void InternationalTrade::leituraArquivoCSV() {
-
-    RegistroTrade* dados = new RegistroTrade[quantTrades];
     string linha;
     char lixo;
     int i = 0;
@@ -44,7 +42,6 @@ void InternationalTrade::leituraArquivoCSV() {
 
     getline(arquivoCSV, linha); // Pular o cabeçalho
 
-    // Contar a quantidade de trades
     while (getline(arquivoCSV, linha)) {
         quantTrades++;
     }
@@ -52,7 +49,9 @@ void InternationalTrade::leituraArquivoCSV() {
     arquivoCSV.clear();
     arquivoCSV.seekg(0, ios::beg);
     getline(arquivoCSV, linha);
-
+    
+    RegistroTrade* dados = new RegistroTrade[quantTrades];
+    
     while (arquivoCSV >> dados[i].time_ref) {
         arquivoCSV >> lixo; // Pular a vírgula
         arquivoCSV.getline(dados[i].account, 50, ',');
@@ -77,6 +76,8 @@ void InternationalTrade::leituraArquivoCSV() {
 
     transformarEmBinario(dados, quantTrades);
 
+    cout << "Arquivo binario criado com sucesso!" << endl;
+
     delete[] dados;
 }
 
@@ -100,8 +101,7 @@ void InternationalTrade::leituraArquivoBinario() {
     quantTrades = tamanhoArquivo / sizeof(RegistroTrade);
 
     RegistroTrade* dados = new RegistroTrade[quantTrades];
-
-    // Ler os dados do arquivo binário
+    
     arquivoBinario.read((char*)dados, tamanhoArquivo);
     
     arquivoBinario.close();
