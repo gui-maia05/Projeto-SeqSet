@@ -1,380 +1,312 @@
 #include <iostream>
 #include <fstream>
+#include <cstring>
+#include <algorithm>
+#include <sstream>
+#include <iomanip>
 
 using namespace std;
 
-const int Max = 100; //Tamanho máximo de registros por bloco
+const int MAX_REGISTROS = 50;
 
-struct RegistroTrade {
-	int time_ref;
-	char account[30];
-	char code[10];
-	char country_code[5];
-	char product_type[30];
-	double value;
-	char status[5];
+struct Registro {
+    int timeRef;
+    char account[50];
+    char code[10];
+    char countryCode[10];
+    char productType[30];
+    double value;
+    char status[20];
 
-	// Comparador para ordenação por time_ref
-	bool operator<(const RegistroTrade &outro) {
-		return time_ref < outro.time_ref;
-	}
+    Registro() : timeRef(0), account(""), code(""), countryCode(""), productType(""), value(0), status("") {}
+
+    void MostrarDados() const {
+        // Exibe os dados de um único registro
+        cout << left << setw(10) << timeRef; 
+        cout << setw(13) << account;
+        cout << setw(10) << code;
+        cout << setw(8) << countryCode;
+        cout << setw(10) << productType;
+        cout << setw(15) << fixed << setprecision(2) << value;
+        cout << setw(10) << status << endl;
+    }
 };
 
 struct Bloco {
-	RegistroTrade registros[Max];
-	int numRegistros;
-	Bloco *proximo;
+    Registro registros[MAX_REGISTROS];
+    int qtdRegistros;
+    Bloco* prox;
 
-	Bloco() {
-		numRegistros = 0;
-		proximo = nullptr;
-	}
-};
-
-struct Header {
-	int totalRegistros;
-	int totalBlocos;
-	Bloco *primeiroBloco;
-	Bloco *ultimoBloco; 
+    Bloco() : qtdRegistros(0), prox(nullptr) {}
 };
 
 class SequenceSet {
 private:
-	Bloco *head;
-	Header header;
-    int qtdTrades = 0;
+    Bloco* head;
 
 public:
-	//construtor
-	SequenceSet() {
-		head = nullptr;
-	}
-	//destrutor
-	~SequenceSet() {
-		while (head != nullptr) {
-			Bloco *temp = head;
-			head = head->proximo;
-			delete temp;
-		}
-	}
+    SequenceSet() : head(nullptr) {}
 
-	Bloco *EncontrarBloco(int chave) {
-		Bloco *atual = head;
-		while (atual != nullptr){
-			if (chave >= atual->registros[0].time_ref and chave <= atual->registros[atual->numRegistros - 1].time_ref) {
-				return atual;
-			}
-			atual = atual->proximo;
-		}
-		return nullptr;
-	}
+    ~SequenceSet() {
+        Bloco* atual = head;
+        while (atual) {
+            Bloco* temp = atual;
+            atual = atual->prox;
+            delete temp;
+        }
+    }
 
-	// Inserir um registro
-	void Inserir(const RegistroTrade &registro) {
-		if (head == nullptr) {
-			head = new Bloco();
-		}
+    void InserirRegistro(const Registro& registro) {
+        if (!head) {
+            head = new Bloco();
+        }
 
-		Bloco *bloco = EncontrarBloco(registro.time_ref);
-
-		if (bloco == nullptr) {
-			bloco = new Bloco();
-			bloco->proximo = head;
-			head = bloco;
-		}
-
-		if (bloco->numRegistros < Max) {
-        // Encontra a posição correta para inserir o registro
-            int pos = 0;
-            while (pos < bloco->numRegistros and bloco->registros[pos].time_ref < registro.time_ref) {
-                pos++;
+        Bloco* atual = head;
+        while (true) {
+            if (atual->qtdRegistros < MAX_REGISTROS) {
+                atual->registros[atual->qtdRegistros++] = registro;
+                break;
             }
 
-            // Desloca os registros subsequentes para abrir espaço
-            for (int i = bloco->numRegistros; i > pos; --i) {
-                bloco->registros[i] = bloco->registros[i - 1];
+            if (!atual->prox) {
+                atual->prox = new Bloco();
+            }
+            atual = atual->prox;
+        }
+    }
+
+    void MostrarDados() const {
+        Bloco* atual = head;
+        
+        // Cabeçalho da tabela
+        cout << left << setw(10) << "Time Ref";
+        cout << setw(13) << "Account";
+        cout << setw(10) << "Code";
+        cout << setw(8) << "Country Code";
+        cout << setw(10) << "Product Type";
+        cout << setw(15) << "Value";
+        cout << setw(10) << "Status" << endl;
+        cout << string(95, '-') << endl;
+
+        // Percorrer todos os blocos e registros
+        while (atual) {
+            for (int i = 0; i < atual->qtdRegistros; i++) {
+                const Registro& record = atual->registros[i];
+                cout << left << setw(10) << record.timeRef;
+                cout << setw(13) << record.account;
+                cout << setw(10) << record.code;
+                cout << setw(8) << record.countryCode;
+                cout << setw(10) << record.productType;
+                cout << setw(15) << fixed << setprecision(2) << record.value;
+                cout << setw(10) << record.status << endl;
+            }
+            atual = atual->prox;
+        }
+    }
+
+    void ExibirTodos() const {
+        Bloco* atual = head;
+        int numeroBloco = 1;
+
+        while (atual) {
+            cout << "\nBLOCO " << numeroBloco << endl << endl;
+
+            // Cabeçalho da tabela para cada bloco
+            cout << left << setw(10) << "TimeRef";
+            cout << setw(11) << "Account";
+            cout << setw(8) << "Code";
+            cout << setw(13) << "CountryCode";
+            cout << setw(13) << "ProductType";
+            cout << setw(8) << "Value";
+            cout << setw(10) << "Status" << endl;
+
+            cout << string(95, '-') << endl;
+
+            for (int i = 0; i < atual->qtdRegistros; i++) {
+                atual->registros[i].MostrarDados();
             }
 
-            // Insere o novo registro na posição correta
-            bloco->registros[pos] = registro;
+            cout << string(95, '-') << endl;
 
-            // Incrementa o número de registros no bloco
-            bloco->numRegistros++;
-        } else {
-			// Overflow - criar novo bloco
-			Bloco *novoBloco = new Bloco();
-			for (int i = Max / 2; i < Max; ++i) {
-				novoBloco->registros[novoBloco->numRegistros++] = bloco->registros[i];
-			}
-			bloco->numRegistros = Max / 2;
+            atual = atual->prox;
+            numeroBloco++;
+        }
+    }
 
-			novoBloco->proximo = bloco->proximo;
-			bloco->proximo = novoBloco;
+    int ContarBlocos() const {
+        int count = 0;
+        Bloco* atual = head;
+        while (atual) {
+            count++;
+            atual = atual->prox;
+        }
+        return count;
+    }
 
-			if (registro.time_ref <= bloco->registros[bloco->numRegistros - 1].time_ref) {
-				Inserir(registro);
-			} else {
-				Inserir(registro);
-		    }
-		}
-	}
-
-	void Remover(int chave) {
-		// Localiza o bloco onde o registro pode estar
-		Bloco *bloco = EncontrarBloco(chave);
-		if (bloco == nullptr) {
-			cout << "Registro não encontrado.\n";
-			return;
-		}
-
-		// Localiza o índice do registro com a chave
-		int indice = -1;
-		for (int i = 0; i < bloco->numRegistros; ++i) {
-			if (bloco->registros[i].time_ref == chave) {
-				indice = i;
-				i = bloco->numRegistros; // Termina o loop
-			}
-		}
-
-		// Verifica se o registro foi encontrado
-		if (indice == -1) {
-			cout << "Registro não encontrado.\n";
-			return;
-		}
-
-		// Remove o registro deslocando os elementos seguintes
-		for (int i = indice; i < bloco->numRegistros - 1; ++i) {
-			bloco->registros[i] = bloco->registros[i + 1];
-		}
-		bloco->numRegistros--;
-
-		// Verifica se o bloco ficou vazio
-		if (bloco->numRegistros == 0 and head != bloco) {
-			// Encontra o bloco anterior para remover o bloco vazio
-			Bloco *anterior = head;
-			while (anterior->proximo != bloco) {
-				anterior = anterior->proximo;
-			}
-			anterior->proximo = bloco->proximo;
-			delete bloco;
-		}
-	}
-
-    void LeituraArqCSV(SequenceSet &sequenceSet){
-        ifstream arquivoCSV("international-trade-june-2022-quarter-csv.csv");
-        if (!arquivoCSV) {
-            cout << "Erro ao abrir o arquivo CSV!\n";
+    void SalvarEmArquivo(const string& nomeArquivo) const {
+        ofstream file(nomeArquivo, ios::binary);
+        if (!file) {
+            cout << "Erro ao abrir o arquivo para salvar: " << nomeArquivo << endl;
             return;
         }
-        
-		string linha;
-        char lixo;
-        getline(arquivoCSV, linha); //pular o cabeçalho
 
-        while (arquivoCSV.peek() != EOF) {
-			RegistroTrade registro;
+        Bloco* atual = head;
+        while (atual) {
+            // Escreve o número de registros no bloco
+            file.write(reinterpret_cast<const char*>(&atual->qtdRegistros), sizeof(atual->qtdRegistros));
 
-			arquivoCSV >> registro.time_ref >> lixo; //le time_ref e pula a vírgula
-            arquivoCSV.getline(registro.account, sizeof(registro.account), ',');
-            arquivoCSV.getline(registro.code, sizeof(registro.code), ',');
-            arquivoCSV.getline(registro.country_code, sizeof(registro.country_code), ',');
-            arquivoCSV.getline(registro.product_type, sizeof(registro.product_type), ',');
-            arquivoCSV >> registro.value >> lixo;
-            if (arquivoCSV.fail()) {
-                registro.value = 0.0; // Se falhou, atribui 0.0
-                arquivoCSV.clear(); // Limpar o estado de falha
-                arquivoCSV >> lixo; 
+            // Escreve todos os registros do bloco
+            file.write(reinterpret_cast<const char*>(atual->registros), sizeof(Registro) * atual->qtdRegistros);
+
+            atual = atual->prox;
+        }
+
+        file.close();
+        cout << "Blocos salvos no arquivo: " << nomeArquivo << endl;
+    }
+
+    void CarregarDeArquivo(const string& nomeArquivo) {
+        ifstream file(nomeArquivo, ios::binary);
+        if (!file) {
+            cout << "Erro ao abrir o arquivo para carregar: " << nomeArquivo << endl;
+            return;
+        }
+
+        // Limpa qualquer estrutura existente
+        while (head) {
+            Bloco* temp = head;
+            head = head->prox;
+            delete temp;
+        }
+
+        Bloco* atual = nullptr;
+        while (true) {
+            int qtdRegistros;
+            file.read(reinterpret_cast<char*>(&qtdRegistros), sizeof(qtdRegistros));
+            if (file.eof()) break; // Se chegou ao fim do arquivo, termina
+
+            Bloco* novoBloco = new Bloco();
+            novoBloco->qtdRegistros = qtdRegistros;
+            file.read(reinterpret_cast<char*>(novoBloco->registros), sizeof(Registro) * qtdRegistros);
+
+            if (!head) {
+                head = novoBloco;
+                atual = head;
             } else {
-                arquivoCSV >> lixo; 
+                atual->prox = novoBloco;
+                atual = novoBloco;
             }
-            arquivoCSV.getline(registro.status, 10);
-            arquivoCSV.ignore();
-            sequenceSet.Inserir(registro);
         }
-        arquivoCSV.close();
+
+        file.close();
     }
-
-    bool Verificacao(const char *nomeArq){
-        ifstream arquivoBinario(nomeArq);
-        if (arquivoBinario.is_open()) {
-            arquivoBinario.close();
-			return true;
-        }
-        return false;
-    }
-
-	void ExportarParaBIN(){
-		ofstream arquivoBinario("international-trade-june-2022-quarter-bin.bin", ios::binary);
-		if (!arquivoBinario) {
-			cout << "Erro ao abrir o arquivo binario para escrita!\n";
-			return;
-		}
-		
-		Bloco *atual = head;
-		int totalBlocos = 0;
-
-		while (atual != nullptr) {
-			totalBlocos++;
-			atual = atual->proximo;
-		}
-
-		arquivoBinario.write((char *)&totalBlocos, sizeof(totalBlocos));
-
-		atual = head;		
-		while (atual != nullptr) {
-			arquivoBinario.write((char *)&atual->numRegistros, sizeof(atual->numRegistros));
-			arquivoBinario.write((char *)atual->registros, sizeof(RegistroTrade) * atual->numRegistros);
-			atual = atual->proximo;
-		}
-
-		arquivoBinario.close();
-	}
-
-	void ImportarDeBIN(){
-		ifstream arquivoBinario("international-trade-june-2022-quarter-bin.bin", ios::binary);
-		if (!arquivoBinario) {
-			cout << "Erro ao abrir o arquivo binario para leitura!\n";
-			return;
-		}
-
-		int totalBlocos;
-		arquivoBinario.read((char *)&totalBlocos, sizeof(totalBlocos));
-
-		for (int i = 0; i < totalBlocos; i++) {
-			Bloco *novoBloco = new Bloco();
-			arquivoBinario.read((char *)&novoBloco->numRegistros, sizeof(novoBloco->numRegistros));
-			arquivoBinario.read((char *)novoBloco->registros, sizeof(RegistroTrade) * novoBloco->numRegistros);
-
-			if (head == nullptr) {
-				head = novoBloco;
-			} else {
-				Bloco *atual = head;
-				while (atual->proximo != nullptr) {
-					atual = atual->proximo;
-				}
-				atual->proximo = novoBloco;
-			}
-		}
-		arquivoBinario.close();
-	}
 };
 
-void InsercaoTerminal(SequenceSet &sequenceSet) {
-    RegistroTrade novoRegistro;
-    char lixo;
-
-    cout << "Digite o time_ref (int): ";
-    cin >> novoRegistro.time_ref;
-
-    cout << "Digite a account (string): ";
-    cin.ignore();
-    cin.getline(novoRegistro.account, sizeof(novoRegistro.account));
-
-    cout << "Digite o code (string): ";
-    cin.getline(novoRegistro.code, sizeof(novoRegistro.code));
-
-    cout << "Digite o country_code (string): ";
-    cin.getline(novoRegistro.country_code, sizeof(novoRegistro.country_code));
-
-    cout << "Digite o product_type (string): ";
-    cin.getline(novoRegistro.product_type, sizeof(novoRegistro.product_type));
-
-    cout << "Digite o value (double): ";
-    cin >> novoRegistro.value;
-
-    cout << "Digite o status (string): ";
-    cin >> novoRegistro.status;
-
-    sequenceSet.Inserir(novoRegistro);
-    cout << "Registro inserido com sucesso!" << endl;
-}
-
-void RemocaoUsuario(SequenceSet &sequenceSet) {
-    int chave;
-    cout << "Digite o time_ref do registro que deseja remover: ";
-    cin >> chave;
-
-    sequenceSet.Remover(chave);
-    cout << "Remocao concluida!\n";
-}
-
-void BuscaUsuario(SequenceSet &sequenceSet) {
-    int chave;
-    cout << "Digite o time_ref que deseja buscar: ";
-    cin >> chave;
-
-    Bloco *bloco = sequenceSet.EncontrarBloco(chave);
-    if (bloco == nullptr) {
-        cout << "Nenhum registro encontrado para o time_ref fornecido.\n";
+void lerCSVEInserir(const string& nomeArquivo, SequenceSet& sequenceSet) {
+    ifstream arquivo(nomeArquivo);
+    if (!arquivo.is_open()) {
+        cout << "Erro ao abrir o arquivo: " << nomeArquivo << endl;
         return;
     }
 
-	bool encontrado = false;
-    cout << "Registros encontrados:\n";
-    for (int i = 0; i < bloco->numRegistros; i++) {
-        if (bloco->registros[i].time_ref == chave) {
-            cout << "time_ref: " << bloco->registros[i].time_ref << ", " << endl;
-            cout << "account: " << bloco->registros[i].account << ", " << endl;
-            cout << "code: " << bloco->registros[i].code << ", " << endl;
-            cout << "country_code: " << bloco->registros[i].country_code << ", " << endl;
-            cout << "product_type: " << bloco->registros[i].product_type << ", " << endl;
-            cout << "value: " << bloco->registros[i].value << ", " << endl;
-            cout << "status: " << bloco->registros[i].status << endl << endl;
-			encontrado = true;
+    string linha;
+    int cont = 0;
+
+    while (getline(arquivo, linha) and cont < 500) {
+        stringstream ss(linha);
+        string timeRefStr, account, code, countryCode, productType, valueStr, status;
+
+        if (!getline(ss, timeRefStr, ',') || 
+            !getline(ss, account, ',') || 
+            !getline(ss, code, ',') || 
+            !getline(ss, countryCode, ',') || 
+            !getline(ss, productType, ',') || 
+            !getline(ss, valueStr, ',') ||
+            !getline(ss, status, ',')) {
+            cout << "Erro: Linha com formato inválido: " << linha << endl;
+            continue;
         }
+
+        if (timeRefStr.empty() || account.empty() || code.empty() || countryCode.empty() || 
+            productType.empty() || valueStr.empty() || status.empty()) {
+            cout << "Erro: Campo vazio encontrado na linha: " << linha << endl;
+            continue;
+        }
+
+        Registro registro;
+        try {
+            registro.timeRef = stoi(timeRefStr);
+            strcpy(registro.account, account.c_str());
+            strcpy(registro.code, code.c_str());
+            strcpy(registro.countryCode, countryCode.c_str());
+            strcpy(registro.productType, productType.c_str());
+            registro.value = stod(valueStr);
+            strcpy(registro.status, status.c_str());
+        } catch (const invalid_argument& e) {
+            cout << "Erro ao converter valores na linha: " << linha << endl;
+            continue;
+        }
+
+        sequenceSet.InserirRegistro(registro);
+        cont++;
     }
 
-	if (!encontrado) {
-		cout << "Nenhum registro encontrado para a chave fornecida.\n";
-	}
+    arquivo.close();
 }
 
 void Interface(){
-	SequenceSet sequenceSet;
+    SequenceSet sequenceSet;
+    
+    // Ler o arquivo CSV e preencher o Sequence Set
+    lerCSVEInserir("international-trade-june-2022-quarter-csv.csv", sequenceSet);
 
-	// Verifica se existe um arquivo binário previamente gerado
-	if (sequenceSet.Verificacao("international-trade-june-2022-quarter-bin.bin")) {
-		sequenceSet.ImportarDeBIN();
-	} else {
-		sequenceSet.LeituraArqCSV(sequenceSet);
-		sequenceSet.ExportarParaBIN();
-	}
-	
+    // Salvar os blocos em um arquivo
+    sequenceSet.SalvarEmArquivo("blocos.dat");
+
+	int opcao;
 	bool encontrado = true;
 	while (encontrado){
-		int opcao;
 		cout << "-------------------------------------------------MENU----------------------------------------------------"<< endl;
 		cout << "Escolha o que deseja fazer:" << endl << endl;
-		cout << "Digite [1] para fazer uma busca." << "				" << "Digite [3] para fazer uma remocao." << endl;
+		cout << "Digite [1] para fazer uma busca." << "				" << "Digite [4] para mostrar os dados." << endl;
 		cout << "Digite [2] para fazer uma insercao." << "				" << "Digite [0] para encerrar o programa." << endl;
+        cout << "Digite [3] para fazer uma remocao." << endl;
 		cin >> opcao;
 		cout << endl;
 
 		switch (opcao) {
 		case 1:
-			BuscaUsuario(sequenceSet);
+			cout << "em desenvolvimento..." << endl;
 			break;
 		case 2:
-			InsercaoTerminal(sequenceSet);
+			cout << "em desenvolvimento..." << endl;
 			break;
 		case 3:
-			RemocaoUsuario(sequenceSet);
+			cout << "em desenvolvimento..." << endl;
 			break;
+        case 4: {
+            // Limpar e carregar os blocos do arquivo
+            SequenceSet loadedSequenceSet;
+            loadedSequenceSet.CarregarDeArquivo("blocos.dat");
+            loadedSequenceSet.ExibirTodos();
+            // Exibir a quantidade de blocos carregados
+            cout << "Total de blocos carregados: " << loadedSequenceSet.ContarBlocos() << endl;
+            break;
+        }
 		case 0:
 			encontrado = false;
-			sequenceSet.ExportarParaBIN();
 			cout << "Encerrando programa..." << endl;
 			break;
+
 		default:
-            cout << "Erro!" << endl;
+            cout << "Opcao invalida!" << endl;
 		break;
 		}
 	}
 }
 
 int main() {
-
-	Interface();
-
-	return 0;
+    Interface();
+    
+    return 0;
 }
